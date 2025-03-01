@@ -68,7 +68,6 @@ Alternatively, you may remove the hector trajectory server node if trajectory vi
     git clone https://github.com/wh200720041/floam.git
     cd ..
     catkin_make
-    source ~/catkin_ws/devel/setup.bash
 ```
 ### 4.2 Download test rosbag
 Download [KITTI sequence 05](https://drive.google.com/file/d/1eyO0Io3lX2z-yYsfGHawMKZa5Z0uYJ0W/view?usp=sharing) or [KITTI sequence 07](https://drive.google.com/file/d/1_qUfwUw88rEKitUpt1kjswv7Cv4GPs0b/view?usp=sharing)
@@ -86,6 +85,7 @@ And this may take a few minutes to unzip the file
 
 ### 4.3 Launch ROS
 ```
+    source ~/catkin_ws/devel/setup.bash
     roslaunch floam floam.launch
 ```
 if you would like to create the map at the same time, you can run (more cpu cost)
