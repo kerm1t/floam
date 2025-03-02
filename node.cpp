@@ -1,3 +1,4 @@
+// (1) ROS
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
@@ -11,6 +12,15 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 
+// (2) ECAL
+#include <ecal/ecal.h>
+#include <ecal/msg/protobuf/subscriber.h>
+// proto
+#include "pcl.pb.h"
+// unpacker for Pointcloud2
+#include "../include/PointCloudHandler.h"
+
+
 #include <sstream>
 
 //struct Point {
@@ -20,6 +30,34 @@
 //};
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+
+ros::Publisher pcl_pub;
+
+void pointcloud_callback(const pcl::PointCloud2 msg) {
+
+// (A) subscribe <-- eCAL
+  std::vector<double> pts;
+  std::vector<std::string> fields = {"x","y","z"};
+  getPointFields(msg, pts, fields);
+  if  (pts.size() == 0) return;
+
+  int npts = msg.width();
+  ROS_INFO("received %d pts", npts);
+
+// (B) publish --> ROS
+  PointCloud::Ptr msg_p(new PointCloud);
+  msg_p->header.frame_id = "map"; // "velodyne", ...
+  msg_p->height = 1;
+  msg_p->width = npts;
+  for (int i=0;i<npts;i++) {
+    float x = pts[i * fields.size()];
+    float y = pts[i * fields.size() + 1];
+    float z = pts[i * fields.size() + 2];
+    msg_p->points.push_back(pcl::PointXYZ(x, y, z));
+  }
+  pcl_conversions::toPCL(ros::Time::now(), msg_p->header.stamp);
+  pcl_pub.publish(*msg_p);
+}
 
 /**
  * This tutorial demonstrates simple sending of messages over the ROS system.
@@ -55,9 +93,7 @@ int main(int argc, char **argv)
    * node.  advertise() returns a Publisher object which allows you to
    * publish messages on that topic through a call to publish().  Once
    * all copies of the returned Publisher object are destroyed, the topic
-   * will be automatically unadvertised.
-   *
-   * The second parameter to advertise() is the size of the message queue
+   * will be automatically unadvertised.os::Publisher  of the message queue
    * used for publishing messages.  If messages are published more quickly
    * than we can send them, the number here specifies how many messages to
    * buffer up before throwing some away.
@@ -67,8 +103,19 @@ int main(int argc, char **argv)
   // (a) ROS
 //  ros::Publisher pcl2_pub = nh.advertise<sensor_msgs::PointCloud2>("test/pointcloud2", 1);
   // (b) PCL-> ROS
-  ros::Publisher pcl_pub = nh.advertise<PointCloud>("test/points2", 1);
+//  pcl_pub = nh.advertise<PointCloud>("test/points2", 1);
+  pcl_pub = nh.advertise<PointCloud>("velodyne_points", 1);
     
+
+  // Initialize eCAL and create a protobuf subscriber
+  eCAL::Initialize(argc, argv, "ecal.PCL2 --> ros.PCL2");
+  eCAL::protobuf::CSubscriber<pcl::PointCloud2> subscriber("meta_pcl");//PRe");
+  // Set the Callback
+  subscriber.AddReceiveCallback(std::bind(&pointcloud_callback, std::placeholders::_2));
+  ROS_INFO("startet eCAL subscriber for pointcloud2");
+
+
+
   ros::Rate loop_rate(10); // Hz ?
 
   /**
@@ -76,7 +123,7 @@ int main(int argc, char **argv)
    * a unique string for each message.
    */
   int count = 0;
-  while (ros::ok())
+  while (ros::ok() && eCAL::Ok())
   {
     /**
      * This is a message object. You stuff it with data, and then publish it.
@@ -87,8 +134,8 @@ int main(int argc, char **argv)
     ss << "hello world " << count;
     msg.data = ss.str();
 
-    ROS_INFO("%s", msg.data.c_str());
-
+///    ROS_INFO("%s", msg.data.c_str());
+/*
     // kickoff: create a pointcloud with random values
     int npts = 100;
     PointCloud::Ptr msg_p (new PointCloud);
@@ -101,9 +148,10 @@ int main(int argc, char **argv)
       float y = -10.0f + rand()*scale;
       float z = -10.0f + rand()*scale;
       msg_p->points.push_back(pcl::PointXYZ(x, y, z));
-      ROS_INFO("%d: %f,%f,%f", i,x,y,z);
+//      ROS_INFO("%d: %f,%f,%f", i,x,y,z);
     }
-  
+*/
+
     /**
      * The publish() function is how you send messages. The parameter
      * is the message object. The type of this object must agree with the type
@@ -112,8 +160,8 @@ int main(int argc, char **argv)
      */
     chatter_pub.publish(msg);
 
-    pcl_conversions::toPCL(ros::Time::now(), msg_p->header.stamp);
-    pcl_pub.publish(*msg_p);
+///    pcl_conversions::toPCL(ros::Time::now(), msg_p->header.stamp);
+///    pcl_pub.publish(*msg_p);
 
     ros::spinOnce();
 

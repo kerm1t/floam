@@ -17,45 +17,43 @@ find_package(catkin REQUIRED COMPONENTS
   eigen_conversions
 )
 
-#find_package(Eigen3)
-#if(NOT EIGEN3_FOUND)
-#  # Fallback to cmake_modules
-#  find_package(cmake_modules REQUIRED)
-#  find_package(Eigen REQUIRED)
-#  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
-#  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
-#  # Possibly map additional variables to the EIGEN3_ prefix.
-#else()
-#  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
-#endif()
 find_package(PCL REQUIRED)
-#find_package(Ceres REQUIRED)
+
+
+find_package(eCAL REQUIRED)
+find_package(Protobuf REQUIRED)
+
 
 include_directories(
-#  include
+  include
   ${catkin_INCLUDE_DIRS} 
   ${PCL_INCLUDE_DIRS}
-#  ${CERES_INCLUDE_DIRS}
-#  ${EIGEN3_INCLUDE_DIRS}
 )
 
 link_directories(
-#  include
+  include
   ${PCL_LIBRARY_DIRS}
-#  ${CERES_LIBRARY_DIRS}
 )
 
-
+# ROS build
 catkin_package(
   CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs
-#  DEPENDS EIGEN3 PCL Ceres
   DEPENDS PCL
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 )
 
+# eCAL / proto
+set(protobuf_files
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/pcl.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/pcl_header.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/pcl_pfield.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/types.proto
+)
+add_executable(testnode node.cpp include/PointCloudHandler.cpp)
+
+# compile protos
+PROTOBUF_TARGET_CPP(testnode ${CMAKE_CURRENT_SOURCE_DIR}/proto/ ${protobuf_files})
 
 
-add_executable(testnode node.cpp)
-#target_link_libraries(floam_laser_processing_node ${EIGEN3_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
-target_link_libraries(testnode ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(testnode ${catkin_LIBRARIES} ${PCL_LIBRARIES} eCAL::core protobuf::libprotobuf)
 
