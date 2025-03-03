@@ -1,11 +1,9 @@
 // (1) ROS
 #include "ros/ros.h"
-#include "std_msgs/String.h"
-
 
 // Publish pointcloud
 // opt A: pointcloud2
-#include <sensor_msgs/PointCloud2.h>
+/// #include <sensor_msgs/PointCloud2.h>
 // --> opt B: pcl pointcloud, s. http://wiki.ros.org/pcl_ros
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
@@ -20,24 +18,17 @@
 // unpacker for Pointcloud2
 #include "../include/PointCloudHandler.h"
 
+typedef pcl::PointCloud<pcl::PointXYZI> PointCloud;
 
-#include <sstream>
-
-//struct Point {
-//  float x;
-//  float y;
-//  float z;
-//};
-
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-
+// ROS msg is published in eCAL callback now.
+// 2do: do this in the main loop using a Mutex
 ros::Publisher pcl_pub;
 
 void pointcloud_callback(const pcl::PointCloud2 msg) {
 
 // (A) subscribe <-- eCAL
   std::vector<double> pts;
-  std::vector<std::string> fields = {"x","y","z"};
+  std::vector<std::string> fields = {"x","y","z","Processed Intensity"}; // fuckin HRL constraints
   getPointFields(msg, pts, fields);
   if  (pts.size() == 0) return;
 
@@ -50,10 +41,12 @@ void pointcloud_callback(const pcl::PointCloud2 msg) {
   msg_p->height = 1;
   msg_p->width = npts;
   for (int i=0;i<npts;i++) {
-    float x = pts[i * fields.size()];
-    float y = pts[i * fields.size() + 1];
-    float z = pts[i * fields.size() + 2];
-    msg_p->points.push_back(pcl::PointXYZ(x, y, z));
+    pcl::PointXYZI pt;
+    pt.x = pts[i * fields.size()];
+    pt.y = pts[i * fields.size() + 1];
+    pt.z = pts[i * fields.size() + 2];
+    pt.intensity = pts[i * fields.size() + 3];
+    msg_p->points.push_back(pt);
   }
   pcl_conversions::toPCL(ros::Time::now(), msg_p->header.stamp);
   pcl_pub.publish(*msg_p);
@@ -74,7 +67,7 @@ int main(int argc, char **argv)
    * You must call one of the versions of ros::init() before using any other
    * part of the ROS system.
    */
-  ros::init(argc, argv, "talker");
+  ros::init(argc, argv, "ecal2ros_pointcloud2");
 
   /**
    * NodeHandle is the main access point to communications with the ROS system.
@@ -98,13 +91,12 @@ int main(int argc, char **argv)
    * than we can send them, the number here specifies how many messages to
    * buffer up before throwing some away.
    */
-  ros::Publisher chatter_pub = nh.advertise<std_msgs::String>("chatter", 1000);
 
   // (a) ROS
 //  ros::Publisher pcl2_pub = nh.advertise<sensor_msgs::PointCloud2>("test/pointcloud2", 1);
   // (b) PCL-> ROS
 //  pcl_pub = nh.advertise<PointCloud>("test/points2", 1);
-  pcl_pub = nh.advertise<PointCloud>("velodyne_points", 1);
+  pcl_pub = nh.advertise<PointCloud>("velodyne_points", 1); // tmp ... to satisfy floam node
     
 
   // Initialize eCAL and create a protobuf subscriber
@@ -112,8 +104,7 @@ int main(int argc, char **argv)
   eCAL::protobuf::CSubscriber<pcl::PointCloud2> subscriber("meta_pcl");//PRe");
   // Set the Callback
   subscriber.AddReceiveCallback(std::bind(&pointcloud_callback, std::placeholders::_2));
-  ROS_INFO("startet eCAL subscriber for pointcloud2");
-
+  ROS_INFO("started eCAL subscriber for pointcloud2");
 
 
   ros::Rate loop_rate(10); // Hz ?
@@ -125,17 +116,8 @@ int main(int argc, char **argv)
   int count = 0;
   while (ros::ok() && eCAL::Ok())
   {
-    /**
-     * This is a message object. You stuff it with data, and then publish it.
-     */
-    std_msgs::String msg;
 
-    std::stringstream ss;
-    ss << "hello world " << count;
-    msg.data = ss.str();
-
-///    ROS_INFO("%s", msg.data.c_str());
-/*
+#ifdef RAND_POINTCLOUD
     // kickoff: create a pointcloud with random values
     int npts = 100;
     PointCloud::Ptr msg_p (new PointCloud);
@@ -148,9 +130,9 @@ int main(int argc, char **argv)
       float y = -10.0f + rand()*scale;
       float z = -10.0f + rand()*scale;
       msg_p->points.push_back(pcl::PointXYZ(x, y, z));
-//      ROS_INFO("%d: %f,%f,%f", i,x,y,z);
+      ROS_INFO("%d: %f,%f,%f", i,x,y,z);
     }
-*/
+#endif
 
     /**
      * The publish() function is how you send messages. The parameter
@@ -158,7 +140,6 @@ int main(int argc, char **argv)
      * given as a template parameter to the advertise<>() call, as was done
      * in the constructor above.
      */
-    chatter_pub.publish(msg);
 
 ///    pcl_conversions::toPCL(ros::Time::now(), msg_p->header.stamp);
 ///    pcl_pub.publish(*msg_p);
