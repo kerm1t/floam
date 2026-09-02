@@ -29,6 +29,7 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
             continue;
         double angle = atan(pc_in->points[i].z / distance) * 180 / M_PI;
         
+#define MID360_DUMMY_LINES 65
         if (N_SCANS == 16)
         {
             scanID = int((angle + 15) / 2 + 0.5);
@@ -57,6 +58,14 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
                 continue;
             }
         }
+        else if (N_SCANS == MID360_DUMMY_LINES)
+        {
+            // velodyne Puck-15   ... +15 deg, vert.res = 2 deg
+            // velodyne 32
+            // Velodyne 64   -24.9 ... +2  deg, vert.res, lower block 0.5 deg, upper block 0.33 deg
+            // mid360         -7   ... +52 deg
+            scanID = int((angle + 7) / 2 * 2.0 + 0.5); // assumed 0.2 deg resolution
+        }   
         else
         {
             printf("wrong scan number\n");
