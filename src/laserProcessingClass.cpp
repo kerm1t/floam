@@ -3,19 +3,19 @@
 // Homepage https://wanghan.pro
 #include "laserProcessingClass.h"
 
-void LaserProcessingClass::init(lidar::Lidar lidar_param_in){
+void LaserProcessingClass::init(lidar::Lidar lidar_param_in) {
     
     lidar_param = lidar_param_in;
 
 }
 
-void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_edge,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_surf){
+void LaserProcessingClass::featureExtraction(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+          pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_edge,
+          pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_surf){
 
     std::vector<int> indices;
     pcl::removeNaNFromPointCloud(*pc_in, indices);
-
 
     int N_SCANS = lidar_param.num_lines;
     std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> laserCloudScans;
@@ -75,16 +75,16 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
             printf("wrong scan number\n");
         }
         laserCloudScans[scanID]->push_back(pc_in->points[i]); 
-
     }
 
-    for(int i = 0; i < N_SCANS; i++){
-        if(laserCloudScans[i]->points.size()<131){
+    // ueber alle Ringe ...
+    for (int i = 0; i < N_SCANS; i++) {
+        if(laserCloudScans[i]->points.size()<131){ // ?
             continue;
         }
         
         std::vector<Double2d> cloudCurvature; 
-        int total_points = laserCloudScans[i]->points.size()-10;
+        int total_points = laserCloudScans[i]->points.size()-10; // border handling = don't use borders ;-)
         // hmm, so ne Art Boxfilter?
         // jeweils über 10 Punkte
         // die Punkte werden in der Mitte des Filters bewertet
@@ -98,34 +98,32 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
                            laserCloudScans[i]->points[j - 3].x +
                            laserCloudScans[i]->points[j - 2].x +
                            laserCloudScans[i]->points[j - 1].x -
-                      10 * laserCloudScans[i]->points[j].x +
+                      10 * laserCloudScans[i]->points[j].x +      // 10-fache Gewichtung des mittleren Punktes
                            laserCloudScans[i]->points[j + 1].x +
                            laserCloudScans[i]->points[j + 2].x +
                            laserCloudScans[i]->points[j + 3].x +
                            laserCloudScans[i]->points[j + 4].x +
                            laserCloudScans[i]->points[j + 5].x;
-
+            // s.o. ...
             double diffY = laserCloudScans[i]->points[j - 5].y + laserCloudScans[i]->points[j - 4].y + laserCloudScans[i]->points[j - 3].y + laserCloudScans[i]->points[j - 2].y + laserCloudScans[i]->points[j - 1].y - 10 * laserCloudScans[i]->points[j].y + laserCloudScans[i]->points[j + 1].y + laserCloudScans[i]->points[j + 2].y + laserCloudScans[i]->points[j + 3].y + laserCloudScans[i]->points[j + 4].y + laserCloudScans[i]->points[j + 5].y;
             double diffZ = laserCloudScans[i]->points[j - 5].z + laserCloudScans[i]->points[j - 4].z + laserCloudScans[i]->points[j - 3].z + laserCloudScans[i]->points[j - 2].z + laserCloudScans[i]->points[j - 1].z - 10 * laserCloudScans[i]->points[j].z + laserCloudScans[i]->points[j + 1].z + laserCloudScans[i]->points[j + 2].z + laserCloudScans[i]->points[j + 3].z + laserCloudScans[i]->points[j + 4].z + laserCloudScans[i]->points[j + 5].z;
             Double2d distance(j,diffX * diffX + diffY * diffY + diffZ * diffZ);
             cloudCurvature.push_back(distance);
-
         }
-        for(int j=0;j<6;j++){
+
+        for(int j=0; j<6; j++) { // divide into 6 sectors
             int sector_length = (int)(total_points/6);
             int sector_start = sector_length *j;
             int sector_end = sector_length *(j+1)-1;
-            if (j==5){
+            if (j==5) {
                 sector_end = total_points - 1; 
             }
-            std::vector<Double2d> subCloudCurvature(cloudCurvature.begin()+sector_start,cloudCurvature.begin()+sector_end); 
+            std::vector<Double2d> subCloudCurvature(cloudCurvature.begin()+sector_start,
+                                                    cloudCurvature.begin()+sector_end); 
             
-            featureExtractionFromSector(laserCloudScans[i],subCloudCurvature, pc_out_edge, pc_out_surf);
-            
+            featureExtractionFromSector(laserCloudScans[i],subCloudCurvature, pc_out_edge, pc_out_surf);    
         }
-
     }
-
 }
 
 

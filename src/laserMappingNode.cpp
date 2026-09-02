@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     nh.getParam("/vertical_angle", vertical_angle); 
     nh.getParam("/max_dis", max_dis);
     nh.getParam("/min_dis", min_dis);
-    nh.getParam("/scan_line", scan_line);
+    nh.getParam("/scan_line", scan_line); // --> 65 for mid360, s. launch/floam360.launch
     nh.getParam("/map_resolution", map_resolution);
 
     lidar_param.setScanPeriod(scan_period);

@@ -22,9 +22,9 @@ bool EdgeAnalyticCostFunction::Evaluate(double const *const *parameters, double 
     double de_norm = de.norm();
     residuals[0] = nu.norm()/de_norm;
     
-    if(jacobians != NULL)
+    if (jacobians != NULL)
     {
-        if(jacobians[0] != NULL)
+        if (jacobians[0] != NULL)
         {
             Eigen::Matrix3d skew_lp = skew(lp);
             Eigen::Matrix<double, 3, 6> dp_by_se3;
