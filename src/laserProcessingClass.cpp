@@ -9,7 +9,9 @@ void LaserProcessingClass::init(lidar::Lidar lidar_param_in){
 
 }
 
-void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in, pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_edge, pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_surf){
+void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_edge,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_surf){
 
     std::vector<int> indices;
     pcl::removeNaNFromPointCloud(*pc_in, indices);
@@ -21,6 +23,8 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
         laserCloudScans.push_back(pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>()));
     }
 
+    // das ist denke ich die Berechnung der Ringe
+    // kann man sich sparen, wenn Ringe aus Rohdaten kommen
     for (int i = 0; i < (int) pc_in->points.size(); i++)
     {
         int scanID=0;
@@ -81,8 +85,26 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
         
         std::vector<Double2d> cloudCurvature; 
         int total_points = laserCloudScans[i]->points.size()-10;
+        // hmm, so ne Art Boxfilter?
+        // jeweils über 10 Punkte
+        // die Punkte werden in der Mitte des Filters bewertet
+        // die Punkte sind nach Ringen sortiert (elevation)
+        // aber wie steht es um den Azimuth? Sind die Punkte auch nach Az sortiert?
+        // ------------
+        // CoPilt: Ich glaube ja, sonst würde das nicht funktionieren
         for(int j = 5; j < (int)laserCloudScans[i]->points.size() - 5; j++){
-            double diffX = laserCloudScans[i]->points[j - 5].x + laserCloudScans[i]->points[j - 4].x + laserCloudScans[i]->points[j - 3].x + laserCloudScans[i]->points[j - 2].x + laserCloudScans[i]->points[j - 1].x - 10 * laserCloudScans[i]->points[j].x + laserCloudScans[i]->points[j + 1].x + laserCloudScans[i]->points[j + 2].x + laserCloudScans[i]->points[j + 3].x + laserCloudScans[i]->points[j + 4].x + laserCloudScans[i]->points[j + 5].x;
+            double diffX = laserCloudScans[i]->points[j - 5].x +
+                           laserCloudScans[i]->points[j - 4].x +
+                           laserCloudScans[i]->points[j - 3].x +
+                           laserCloudScans[i]->points[j - 2].x +
+                           laserCloudScans[i]->points[j - 1].x -
+                      10 * laserCloudScans[i]->points[j].x +
+                           laserCloudScans[i]->points[j + 1].x +
+                           laserCloudScans[i]->points[j + 2].x +
+                           laserCloudScans[i]->points[j + 3].x +
+                           laserCloudScans[i]->points[j + 4].x +
+                           laserCloudScans[i]->points[j + 5].x;
+
             double diffY = laserCloudScans[i]->points[j - 5].y + laserCloudScans[i]->points[j - 4].y + laserCloudScans[i]->points[j - 3].y + laserCloudScans[i]->points[j - 2].y + laserCloudScans[i]->points[j - 1].y - 10 * laserCloudScans[i]->points[j].y + laserCloudScans[i]->points[j + 1].y + laserCloudScans[i]->points[j + 2].y + laserCloudScans[i]->points[j + 3].y + laserCloudScans[i]->points[j + 4].y + laserCloudScans[i]->points[j + 5].y;
             double diffZ = laserCloudScans[i]->points[j - 5].z + laserCloudScans[i]->points[j - 4].z + laserCloudScans[i]->points[j - 3].z + laserCloudScans[i]->points[j - 2].z + laserCloudScans[i]->points[j - 1].z - 10 * laserCloudScans[i]->points[j].z + laserCloudScans[i]->points[j + 1].z + laserCloudScans[i]->points[j + 2].z + laserCloudScans[i]->points[j + 3].z + laserCloudScans[i]->points[j + 4].z + laserCloudScans[i]->points[j + 5].z;
             Double2d distance(j,diffX * diffX + diffY * diffY + diffZ * diffZ);
@@ -107,7 +129,10 @@ void LaserProcessingClass::featureExtraction(const pcl::PointCloud<pcl::PointXYZ
 }
 
 
-void LaserProcessingClass::featureExtractionFromSector(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in, std::vector<Double2d>& cloudCurvature, pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_edge, pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_surf){
+void LaserProcessingClass::featureExtractionFromSector(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+    std::vector<Double2d>& cloudCurvature,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_edge,
+    pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_out_surf){
 
     std::sort(cloudCurvature.begin(), cloudCurvature.end(), [](const Double2d & a, const Double2d & b)
     { 
@@ -130,7 +155,7 @@ void LaserProcessingClass::featureExtractionFromSector(const pcl::PointCloud<pcl
             picked_points.push_back(ind);
             
             if (largestPickedNum <= 20){
-                pc_out_edge->push_back(pc_in->points[ind]);
+                pc_out_edge->push_back(pc_in->points[ind]);  // EDGE!!
                 point_info_count++;
             }else{
                 break;

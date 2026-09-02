@@ -49,20 +49,22 @@ void velodyneEdgeHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
 bool is_odom_inited = false;
 double total_time =0;
 int total_frame=0;
-void odom_estimation(){
+void odom_estimation(){ // this runs as a thread
     while(1){
         if(!pointCloudEdgeBuf.empty() && !pointCloudSurfBuf.empty()){
 
             //read data
             mutex_lock.lock();
-            if(!pointCloudSurfBuf.empty() && (pointCloudSurfBuf.front()->header.stamp.toSec()<pointCloudEdgeBuf.front()->header.stamp.toSec()-0.5*lidar_param.scan_period)){
+            if(!pointCloudSurfBuf.empty() &&
+               (pointCloudSurfBuf.front()->header.stamp.toSec()<pointCloudEdgeBuf.front()->header.stamp.toSec()-0.5*lidar_param.scan_period)){
                 pointCloudSurfBuf.pop();
                 ROS_WARN_ONCE("time stamp unaligned with extra point cloud, pls check your data --> odom correction");
                 mutex_lock.unlock();
                 continue;  
             }
 
-            if(!pointCloudEdgeBuf.empty() && (pointCloudEdgeBuf.front()->header.stamp.toSec()<pointCloudSurfBuf.front()->header.stamp.toSec()-0.5*lidar_param.scan_period)){
+            if(!pointCloudEdgeBuf.empty() &&
+            (pointCloudEdgeBuf.front()->header.stamp.toSec()<pointCloudSurfBuf.front()->header.stamp.toSec()-0.5*lidar_param.scan_period)){
                 pointCloudEdgeBuf.pop();
                 ROS_WARN_ONCE("time stamp unaligned with extra point cloud, pls check your data --> odom correction");
                 mutex_lock.unlock();
@@ -84,6 +86,7 @@ void odom_estimation(){
                 is_odom_inited = true;
                 ROS_INFO("odom inited");
             }else{
+// put already found edge + surface points into the map
                 std::chrono::time_point<std::chrono::system_clock> start, end;
                 start = std::chrono::system_clock::now();
                 odomEstimation.updatePointsToMap(pointcloud_edge_in, pointcloud_surf_in);
